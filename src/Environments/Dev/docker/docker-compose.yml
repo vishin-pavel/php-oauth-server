@@ -1,0 +1,75 @@
+oauth-memcached:
+  image: phpdockerio/memcached:latest
+  container_name: oauth-memcached
+
+oauth-redis:
+  image: redis
+  container_name: oauth-redis
+  volumes:
+      - ./redis/data:/data
+
+oauth-mongo:
+  image: mongo
+  container_name: oauth-mongo
+  volumes:
+      - ./mongo/data:/data/db
+
+oauth-rabbit:
+  image: rabbitmq
+  container_name: oauth-rabbit
+
+oauth-mailhog:
+  image: phpdockerio/mailhog:latest
+  container_name: oauth-mailhog
+  ports:
+    - "8102:8025"
+
+oauth-mysql:
+  image: mysql
+  container_name: oauth-mysql
+  environment:
+    - MYSQL_ROOT_PASSWORD=VQ6yuJFBU9S7FXG
+    - MYSQL_DATABASE=oauth
+    - MYSQL_USER=oauth
+    - MYSQL_PASSWORD=VQ6yuJFBU9S7FXG
+  volumes:
+      - ./mariadb/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+      - ./mariadb/data:/var/lib/mysql
+
+oauth-webserver:
+  image: xdrum/nginx-extras
+  container_name: oauth-webserver
+  volumes:
+      - ../source:/var/www/oauth
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+  ports:
+   - "8101:80"
+  links:
+   - oauth-php-fpm
+
+oauth-sphinx:
+  build: sphinx/
+  dockerfile: Dockerfile
+  container_name: oauth-sphinx
+  expose:
+    - "3312"
+    - "3320"
+  volumes:
+    - ./sphinx/index:/sphinx-index
+    - ./sphinx/conf/sphinx.conf:/sphinx-conf/sphinx.conf
+
+oauth-php-fpm:
+  build: .
+  dockerfile: php-fpm/Dockerfile
+  container_name: oauth-php-fpm
+  volumes:
+    - ../source:/var/www/oauth
+    - ./php-fpm/php-ini-overrides.ini:/etc/php/7.0/fpm/conf.d/99-overrides.ini
+  links:
+    - oauth-memcached
+    - oauth-mailhog
+    - oauth-mysql
+    - oauth-sphinx
+    - oauth-redis
+    - oauth-mongo
+    - oauth-rabbit
